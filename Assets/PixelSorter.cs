@@ -9,27 +9,44 @@ public class PixelSorter : MonoBehaviour {
 
     public bool useImage = false;
 
-    private RenderTexture maskTex, sortedTex;
+    [Range(0.0f, 0.5f)]
+    public float lowThreshold = 0.2f;
+    
+    [Range(0.5f, 1.0f)]
+    public float highThreshold = 0.8f;
+
+    private RenderTexture maskTex, colorTex, sortedTex;
 
     void OnEnable() {
-        maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
-        maskTex.enableRandomWrite = true;
-        maskTex.Create();
+        if (maskTex == null) {
+            maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+            maskTex.enableRandomWrite = true;
+            maskTex.Create();
+        }
 
-        sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-        sortedTex.enableRandomWrite = true;
-        sortedTex.Create();
-    }
+        if (colorTex == null) {
+            colorTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            colorTex.enableRandomWrite = true;
+            colorTex.Create();
+        }
 
-    void OnDisable() {
-        maskTex.Release();
-        maskTex = null;
-
-        sortedTex.Release();
-        sortedTex = null;
+        if (sortedTex == null) {
+            sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+            sortedTex.enableRandomWrite = true;
+            sortedTex.Create();
+        }
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
-        Graphics.Blit(source, destination);
+        Graphics.Blit(useImage ? image : source, colorTex);
+
+        pixelSorter.SetFloat("_LowThreshold", lowThreshold);
+        pixelSorter.SetFloat("_HighThreshold", highThreshold);
+        pixelSorter.SetTexture(0, "_Mask", maskTex);
+        pixelSorter.SetTexture(0, "_ColorBuffer", colorTex);
+
+        pixelSorter.Dispatch(0, Mathf.CeilToInt(Screen.width / 8.0f),Mathf.CeilToInt(Screen.height / 8.0f), 1);
+
+        Graphics.Blit(maskTex, destination);
     }
 }

@@ -1,16 +1,24 @@
-// Each #kernel tells which function to compile; you can have many kernels
-#pragma kernel CSMain
+#pragma kernel CS_CreateMask
 
-// Create a RenderTexture with enableRandomWrite flag and set it
-// with cs.SetTexture
-RWTexture2D<float4> Result;
+float _LowThreshold, _HighThreshold;
+
+RWTexture2D<float> _Mask;
+RWTexture2D<float4> _ColorBuffer;
 
 RWStructuredBuffer<int> _NumberBuffer;
 
-[numthreads(8,8,1)]
-void CSMain (uint3 id : SV_DispatchThreadID)
-{
-    // TODO: insert actual code here!
+float luminance(float3 color) {
+    return dot(color, float3(0.299f, 0.587f, 0.114f));
+}
 
-    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+[numthreads(8,8,1)]
+void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
+    float4 col = saturate(_ColorBuffer[id.xy]);
+    float l = luminance(col.rgb);
+
+    float result = 1.0f;
+    if (l < _LowThreshold || _HighThreshold < l)
+        result = 0.0f;
+    
+    _Mask[id.xy] = result;
 }
