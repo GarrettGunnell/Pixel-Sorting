@@ -17,25 +17,29 @@ public class PixelSorter : MonoBehaviour {
 
     private RenderTexture maskTex, colorTex, sortedTex;
 
-    void OnEnable() {
-        if (maskTex == null) {
-            maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
-            maskTex.enableRandomWrite = true;
-            maskTex.Create();
-        }
+    void RegenerateRenderTextures() {
+        maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
+        maskTex.enableRandomWrite = true;
+        maskTex.Create();
 
-        if (colorTex == null) {
-            colorTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-            colorTex.enableRandomWrite = true;
-            colorTex.Create();
-        }
+        colorTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        colorTex.enableRandomWrite = true;
+        colorTex.Create();
 
-        if (sortedTex == null) {
-            sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
-            sortedTex.enableRandomWrite = true;
-            sortedTex.Create();
-        }
+        sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        sortedTex.enableRandomWrite = true;
+        sortedTex.Create();
     }
+
+    void OnEnable() {
+        RegenerateRenderTextures();
+    }
+
+    void Update() {
+        if (Screen.width != maskTex.width)
+            RegenerateRenderTextures();
+    }
+
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
         Graphics.Blit(useImage ? image : source, colorTex);
