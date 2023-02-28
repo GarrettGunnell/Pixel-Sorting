@@ -1,5 +1,6 @@
 #pragma kernel CS_CreateMask
 #pragma kernel CS_TestSelectionSort
+#pragma kernel CS_TestBitonicSort
 
 float _LowThreshold, _HighThreshold;
 
@@ -41,4 +42,56 @@ void CS_TestSelectionSort(uint3 id : SV_DISPATCHTHREADID) {
         _NumberBuffer[minIndex] = _NumberBuffer[i];
         _NumberBuffer[i] = temp;
     }
+}
+
+//Implementation largely referenced from https://poniesandlight.co.uk/reflect/bitonic_merge_sort/ but without the bugs
+#define BITONIC_ELEMENTS 16
+
+groupshared uint gs_Cache[BITONIC_ELEMENTS];
+
+void compare_and_swap(int2 idx) {
+    if (gs_Cache[idx.x] > gs_Cache[idx.y]) {
+        uint temp = gs_Cache[idx.x];
+        gs_Cache[idx.x] = gs_Cache[idx.y];
+        gs_Cache[idx.y] = temp;
+    }
+}
+
+void flip(int h, uint t) {
+    int q = ((2 * t) / h) * h;
+    uint half_h = h / 2;
+    int2 indices = q + int2(t % half_h, h - (t % half_h) - 1);
+    compare_and_swap(indices);
+}
+
+void disperse(int h, uint t) {
+    int q = ((2 * t) / h) * h;
+    uint half_h = h / 2;
+    int2 indices = q + int2(t % half_h, (t % half_h) + half_h);
+    compare_and_swap(indices);
+}
+
+[numthreads(BITONIC_ELEMENTS / 2, 1, 1)]
+void CS_TestBitonicSort(uint3 id : SV_DISPATCHTHREADID) {
+    uint t = id.x;
+
+    gs_Cache[t * 2] = _NumberBuffer[t * 2];
+    gs_Cache[t * 2 + 1] = _NumberBuffer[t * 2 + 1];
+
+    uint n = BITONIC_ELEMENTS;
+    
+    [unroll]
+    for (uint h = 2; h <= n; h *= 2) {
+        GroupMemoryBarrierWithGroupSync();
+        flip(h, t);
+        
+        [unroll]
+        for (uint hh = h / 2; hh > 1; hh /= 2) {
+            GroupMemoryBarrierWithGroupSync();
+            disperse(hh, t);
+        }
+    }
+
+    _NumberBuffer[t * 2] = gs_Cache[t * 2];
+    _NumberBuffer[t * 2 + 1] = gs_Cache[t * 2 + 1];
 }

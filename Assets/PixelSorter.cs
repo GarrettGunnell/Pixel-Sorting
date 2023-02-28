@@ -42,9 +42,9 @@ public class PixelSorter : MonoBehaviour {
 
         testBuffer.SetData(testArray);
 
-        pixelSorter.SetBuffer(1, "_NumberBuffer", testBuffer);
+        pixelSorter.SetBuffer(2, "_NumberBuffer", testBuffer);
 
-        pixelSorter.Dispatch(1, 1, 1, 1);
+        pixelSorter.Dispatch(2, 1, 1, 1);
 
         testBuffer.GetData(testArray);
 
