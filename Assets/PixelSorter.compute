@@ -4,6 +4,8 @@
 
 float _LowThreshold, _HighThreshold;
 
+int _BufferWidth, _BufferHeight;
+
 RWTexture2D<float> _Mask;
 RWTexture2D<float4> _ColorBuffer;
 RWTexture2D<float4> _SortedBuffer;
@@ -45,15 +47,19 @@ void CS_TestSelectionSort(uint3 id : SV_DISPATCHTHREADID) {
 }
 
 //Implementation largely referenced from https://poniesandlight.co.uk/reflect/bitonic_merge_sort/ but without the bugs
-#define BITONIC_ELEMENTS 16
+#define BITONIC_ELEMENTS 512
 
-groupshared uint gs_Cache[BITONIC_ELEMENTS];
+groupshared float3 gs_ColorCache[BITONIC_ELEMENTS];
 
-void compare_and_swap(int2 idx) {
-    if (gs_Cache[idx.x] > gs_Cache[idx.y]) {
-        uint temp = gs_Cache[idx.x];
-        gs_Cache[idx.x] = gs_Cache[idx.y];
-        gs_Cache[idx.y] = temp;
+float comparisonValue(float3 col) {
+    return luminance(col);
+}
+
+void compareAndSwap(int2 idx) {
+    if (comparisonValue(gs_ColorCache[idx.x]) <= comparisonValue(gs_ColorCache[idx.y])) {
+        float3 temp = gs_ColorCache[idx.x];
+        gs_ColorCache[idx.x] = gs_ColorCache[idx.y];
+        gs_ColorCache[idx.y] = temp;
     }
 }
 
@@ -61,37 +67,37 @@ void flip(int h, uint t) {
     int q = ((2 * t) / h) * h;
     uint half_h = h / 2;
     int2 indices = q + int2(t % half_h, h - (t % half_h) - 1);
-    compare_and_swap(indices);
+    compareAndSwap(indices);
 }
 
 void disperse(int h, uint t) {
     int q = ((2 * t) / h) * h;
     uint half_h = h / 2;
     int2 indices = q + int2(t % half_h, (t % half_h) + half_h);
-    compare_and_swap(indices);
+    compareAndSwap(indices);
 }
 
 [numthreads(BITONIC_ELEMENTS / 2, 1, 1)]
 void CS_TestBitonicSort(uint3 id : SV_DISPATCHTHREADID) {
-    uint t = id.x;
+    uint2 t = id.xy;
 
-    gs_Cache[t * 2] = _NumberBuffer[t * 2];
-    gs_Cache[t * 2 + 1] = _NumberBuffer[t * 2 + 1];
+    gs_ColorCache[t.x * 2] = _ColorBuffer[uint2(t.x * 2, t.y)].rgb;
+    gs_ColorCache[t.x * 2 + 1] = _ColorBuffer[uint2(t.x * 2 + 1, t.y)].rgb;
 
     uint n = BITONIC_ELEMENTS;
     
     [unroll]
     for (uint h = 2; h <= n; h *= 2) {
         GroupMemoryBarrierWithGroupSync();
-        flip(h, t);
+        flip(h, t.x);
         
         [unroll]
         for (uint hh = h / 2; hh > 1; hh /= 2) {
             GroupMemoryBarrierWithGroupSync();
-            disperse(hh, t);
+            disperse(hh, t.x);
         }
     }
-
-    _NumberBuffer[t * 2] = gs_Cache[t * 2];
-    _NumberBuffer[t * 2 + 1] = gs_Cache[t * 2 + 1];
+    
+    _SortedBuffer[uint2(t.x * 2, t.y)] = float4(gs_ColorCache[t.x * 2], 1.0f);
+    _SortedBuffer[uint2(t.x * 2 + 1, t.y)] = float4(gs_ColorCache[t.x * 2 + 1], 1.0f);
 }
