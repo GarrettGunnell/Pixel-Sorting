@@ -1,9 +1,11 @@
 #pragma kernel CS_CreateMask
+#pragma kernel CS_TestSelectionSort
 
 float _LowThreshold, _HighThreshold;
 
 RWTexture2D<float> _Mask;
 RWTexture2D<float4> _ColorBuffer;
+RWTexture2D<float4> _SortedBuffer;
 
 RWStructuredBuffer<int> _NumberBuffer;
 
@@ -21,4 +23,22 @@ void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
         result = 0.0f;
     
     _Mask[id.xy] = result;
+}
+
+// Selection Sort, so performant!!!!
+[numthreads(1,1,1)]
+void CS_TestSelectionSort(uint3 id : SV_DISPATCHTHREADID) {
+    int n = 16;
+
+    for (int i = 0; i < n - 1; ++i) {
+        int minIndex = i;
+        for (int j = i + 1; j < n; ++j) {
+            if (_NumberBuffer[j] < _NumberBuffer[minIndex])
+                minIndex = j;
+        }
+
+        int temp = _NumberBuffer[minIndex];
+        _NumberBuffer[minIndex] = _NumberBuffer[i];
+        _NumberBuffer[i] = temp;
+    }
 }
