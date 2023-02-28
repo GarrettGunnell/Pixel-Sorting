@@ -4,7 +4,9 @@
 
 float _LowThreshold, _HighThreshold;
 
-int _BufferWidth, _BufferHeight;
+uint _BufferWidth, _BufferHeight;
+
+int _ReverseSorting;
 
 RWTexture2D<float> _Mask;
 RWTexture2D<float4> _ColorBuffer;
@@ -47,7 +49,7 @@ void CS_TestSelectionSort(uint3 id : SV_DISPATCHTHREADID) {
 }
 
 //Implementation largely referenced from https://poniesandlight.co.uk/reflect/bitonic_merge_sort/ but without the bugs
-#define BITONIC_ELEMENTS 512
+#define BITONIC_ELEMENTS 1024
 
 groupshared float3 gs_ColorCache[BITONIC_ELEMENTS];
 
@@ -56,7 +58,12 @@ float comparisonValue(float3 col) {
 }
 
 void compareAndSwap(int2 idx) {
-    if (comparisonValue(gs_ColorCache[idx.x]) <= comparisonValue(gs_ColorCache[idx.y])) {
+    float c1 = comparisonValue(gs_ColorCache[idx.x]);
+    float c2 = comparisonValue(gs_ColorCache[idx.y]);
+
+    bool result = _ReverseSorting ? c1 >= c2 : c1 <= c2;
+
+    if (result) {
         float3 temp = gs_ColorCache[idx.x];
         gs_ColorCache[idx.x] = gs_ColorCache[idx.y];
         gs_ColorCache[idx.y] = temp;
@@ -81,8 +88,14 @@ void disperse(int h, uint t) {
 void CS_TestBitonicSort(uint3 id : SV_DISPATCHTHREADID) {
     uint2 t = id.xy;
 
-    gs_ColorCache[t.x * 2] = _ColorBuffer[uint2(t.x * 2, t.y)].rgb;
-    gs_ColorCache[t.x * 2 + 1] = _ColorBuffer[uint2(t.x * 2 + 1, t.y)].rgb;
+    if (t.x * 2 + 1 < _BufferWidth) {
+        gs_ColorCache[t.x * 2] = _ColorBuffer[uint2(t.x * 2, t.y)].rgb;
+        gs_ColorCache[t.x * 2 + 1] = _ColorBuffer[uint2(t.x * 2 + 1, t.y)].rgb;
+    } else {
+        gs_ColorCache[t.x * 2] = _ReverseSorting ? 1.0f : 0.0f;
+        gs_ColorCache[t.x * 2 + 1] = _ReverseSorting ? 1.0f : 0.0f;
+    }
+
 
     uint n = BITONIC_ELEMENTS;
     

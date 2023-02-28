@@ -15,6 +15,8 @@ public class PixelSorter : MonoBehaviour {
     [Range(0.5f, 1.0f)]
     public float highThreshold = 0.8f;
 
+    public bool reverseSorting = false;
+
     private RenderTexture maskTex, colorTex, sortedTex;
 
     private ComputeBuffer testBuffer;
@@ -73,6 +75,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetFloat("_HighThreshold", highThreshold);
         pixelSorter.SetInt("_BufferWidth", source.width);
         pixelSorter.SetInt("_BufferHeight", source.height);
+        pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
         pixelSorter.SetTexture(0, "_Mask", maskTex);
         pixelSorter.SetTexture(0, "_ColorBuffer", colorTex);
 
