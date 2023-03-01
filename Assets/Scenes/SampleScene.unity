@@ -315,7 +315,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pixelSorter: {fileID: 7200000, guid: 8f615c61fd27b534abe7edb17b6f813f, type: 3}
-  image: {fileID: 2800000, guid: 09d7accfe4eb4ab4d9f6294af3f10893, type: 3}
+  image: {fileID: 2800000, guid: 19986d5a7cef51f41ac65a87ef29b2d9, type: 3}
   useImage: 1
   lowThreshold: 0.2
   highThreshold: 0.8
+  reverseSorting: 0

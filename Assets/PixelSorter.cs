@@ -19,7 +19,7 @@ public class PixelSorter : MonoBehaviour {
 
     private RenderTexture maskTex, colorTex, sortedTex;
 
-    private ComputeBuffer testBuffer;
+    private ComputeBuffer testBuffer, sortedTestBuffer;
 
     void RegenerateRenderTextures() {
         maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
@@ -39,16 +39,18 @@ public class PixelSorter : MonoBehaviour {
         RegenerateRenderTextures();
         /*
         testBuffer = new ComputeBuffer(16, 4);
+        sortedTestBuffer = new ComputeBuffer(16, 4);
 
         int[] testArray = {6, 14, 1, 15, 4, 13, 16, 11, 5, 2, 10, 12, 8, 7, 3, 9};
 
         testBuffer.SetData(testArray);
 
-        pixelSorter.SetBuffer(1, "_NumberBuffer", testBuffer);
+        pixelSorter.SetBuffer(3, "_NumberBuffer", testBuffer);
+        pixelSorter.SetBuffer(3, "_SortedNumberBuffer", sortedTestBuffer);
 
-        pixelSorter.Dispatch(1, 1, 1, 1);
+        pixelSorter.Dispatch(3, 1, 1, 1);
 
-        testBuffer.GetData(testArray);
+        sortedTestBuffer.GetData(testArray);
 
         string outString = "";
         for (int i = 0; i < 16; ++i) {
@@ -66,6 +68,7 @@ public class PixelSorter : MonoBehaviour {
 
     void OnDisable() {
         //testBuffer.Release();
+        //sortedTestBuffer.Release();
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
@@ -81,10 +84,10 @@ public class PixelSorter : MonoBehaviour {
 
         pixelSorter.Dispatch(0, Mathf.CeilToInt(Screen.width / 8.0f),Mathf.CeilToInt(Screen.height / 8.0f), 1);
 
-        pixelSorter.SetTexture(2, "_ColorBuffer", colorTex);
-        pixelSorter.SetTexture(2, "_SortedBuffer", sortedTex);
+        pixelSorter.SetTexture(4, "_ColorBuffer", colorTex);
+        pixelSorter.SetTexture(4, "_SortedBuffer", sortedTex);
 
-        pixelSorter.Dispatch(2, 1, Screen.height, 1);
+        pixelSorter.Dispatch(4, 1, Screen.height, 1);
 
         Graphics.Blit(sortedTex, destination);
     }
