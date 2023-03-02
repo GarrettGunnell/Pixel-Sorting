@@ -15,9 +15,15 @@ public class PixelSorter : MonoBehaviour {
     [Range(0.5f, 1.0f)]
     public float highThreshold = 0.8f;
 
+    public bool debugMask = false;
+
+    public bool debugSpans = false;
+
+    public bool visualizeSpans = false;
+
     public bool reverseSorting = false;
 
-    private RenderTexture maskTex, colorTex, sortedTex;
+    private RenderTexture maskTex, spanTex, colorTex, sortedTex;
 
     private ComputeBuffer testBuffer, sortedTestBuffer;
 
@@ -25,6 +31,10 @@ public class PixelSorter : MonoBehaviour {
         maskTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.R8, RenderTextureReadWrite.Linear);
         maskTex.enableRandomWrite = true;
         maskTex.Create();
+
+        spanTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+        spanTex.enableRandomWrite = true;
+        spanTex.Create();
 
         colorTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
         colorTex.enableRandomWrite = true;
@@ -76,19 +86,49 @@ public class PixelSorter : MonoBehaviour {
 
         pixelSorter.SetFloat("_LowThreshold", lowThreshold);
         pixelSorter.SetFloat("_HighThreshold", highThreshold);
-        pixelSorter.SetInt("_BufferWidth", source.width);
-        pixelSorter.SetInt("_BufferHeight", source.height);
+        pixelSorter.SetInt("_BufferWidth", Screen.width);
+        pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
         pixelSorter.SetTexture(0, "_Mask", maskTex);
         pixelSorter.SetTexture(0, "_ColorBuffer", colorTex);
 
-        pixelSorter.Dispatch(0, Mathf.CeilToInt(Screen.width / 8.0f),Mathf.CeilToInt(Screen.height / 8.0f), 1);
+        pixelSorter.Dispatch(0, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1);
 
-        pixelSorter.SetTexture(4, "_ColorBuffer", colorTex);
-        pixelSorter.SetTexture(4, "_SortedBuffer", sortedTex);
+        pixelSorter.SetTexture(5, "_ClearBuffer", spanTex);
+        pixelSorter.Dispatch(5, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1);
 
-        pixelSorter.Dispatch(4, 1, Screen.height, 1);
+        pixelSorter.SetTexture(6, "_SpanBuffer", spanTex);
+        pixelSorter.SetTexture(6, "_Mask", maskTex);
 
-        Graphics.Blit(sortedTex, destination);
+        pixelSorter.Dispatch(6, 1, Screen.height, 1);
+
+        pixelSorter.SetTexture(5, "_ClearBuffer", sortedTex);
+        pixelSorter.Dispatch(5, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1);
+
+        if (visualizeSpans) {
+            pixelSorter.SetTexture(7, "_ColorBuffer", colorTex);
+            pixelSorter.SetTexture(7, "_SortedBuffer", sortedTex);
+            pixelSorter.SetTexture(7, "_SpanBuffer", spanTex);
+
+            pixelSorter.Dispatch(7, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
+        } else {
+            pixelSorter.SetTexture(8, "_ColorBuffer", colorTex);
+            pixelSorter.SetTexture(8, "_SortedBuffer", sortedTex);
+            pixelSorter.SetTexture(8, "_SpanBuffer", spanTex);
+
+            pixelSorter.Dispatch(8, Screen.width, Screen.height, 1);
+            
+            pixelSorter.SetTexture(9, "_Mask", maskTex);
+            pixelSorter.SetTexture(9, "_ColorBuffer", colorTex);
+            pixelSorter.SetTexture(9, "_SortedBuffer", sortedTex);
+            
+            pixelSorter.Dispatch(9, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
+        }
+        if (debugMask)
+            Graphics.Blit(maskTex, destination);
+        else if (debugSpans)
+            Graphics.Blit(spanTex, destination);
+        else
+            Graphics.Blit(sortedTex, destination);
     }
 }

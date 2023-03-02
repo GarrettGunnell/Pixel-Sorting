@@ -3,6 +3,11 @@
 #pragma kernel CS_TestBitonicSort
 #pragma kernel CS_TestCustomSort
 #pragma kernel CS_TestCustomSortOnImage
+#pragma kernel CS_ClearBuffer
+#pragma kernel CS_IdentifySpans
+#pragma kernel CS_VisualizeSpans
+#pragma kernel CS_PixelSort
+#pragma kernel CS_Composite
 
 float _LowThreshold, _HighThreshold;
 
@@ -13,6 +18,9 @@ int _ReverseSorting;
 RWTexture2D<float> _Mask;
 RWTexture2D<float4> _ColorBuffer;
 RWTexture2D<float4> _SortedBuffer;
+RWTexture2D<float> _SpanBuffer;
+
+RWTexture2D<float4> _ClearBuffer;
 
 RWStructuredBuffer<uint> _NumberBuffer;
 RWStructuredBuffer<uint> _SortedNumberBuffer;
@@ -26,9 +34,9 @@ void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
     float4 col = saturate(_ColorBuffer[id.xy]);
     float l = luminance(col.rgb);
 
-    float result = 1.0f;
+    int result = 1;
     if (l < _LowThreshold || _HighThreshold < l)
-        result = 0.0f;
+        result = 0;
     
     _Mask[id.xy] = result;
 }
@@ -168,5 +176,104 @@ void CS_TestCustomSortOnImage(uint3 id : SV_DISPATCHTHREADID) {
         _SortedBuffer[uint2(i, id.y)] = float4(minColor, 1.0f);
         prevMinValue = minValue;
         minValue = 100000;
+    }
+}
+
+[numthreads(8,8,1)]
+void CS_ClearBuffer(uint3 id : SV_DISPATCHTHREADID) {
+    _ClearBuffer[id.xy] = 0;
+}
+
+[numthreads(1, 1, 1)]
+void CS_IdentifySpans(uint3 id : SV_DISPATCHTHREADID) {
+    uint x = 0;
+    int spanStartIndex = 0;
+    int spanLength = 0;
+
+    while (x < _BufferWidth) {
+        uint2 idx = uint2(x, id.y);
+
+        int mask = _Mask[idx];
+        x++;
+
+        if (mask != 0) {
+            spanLength++;
+        } else {
+            _SpanBuffer[uint2(spanStartIndex, id.y)] = spanLength;
+            spanStartIndex = x;
+            spanLength = 0;
+        }
+    }
+
+    if (spanLength != 0) {
+        _SpanBuffer[uint2(spanStartIndex, id.y)] = spanLength;
+    }
+}
+
+float hash(uint n) {
+    // integer hash copied from Hugo Elias
+	n = (n << 13U) ^ n;
+    n = n * (n * n * 15731U + 0x789221U) + 0x1376312589U;
+    return float(n & uint(0x7fffffffU)) / float(0x7fffffff);
+}
+
+[numthreads(8, 8, 1)]
+void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
+    int spanLength = _SpanBuffer[id.xy];
+
+    if (spanLength >= 1) {
+        uint seed = id.x + 512 * id.y + 512 * 512;
+        float4 c = float4(hash(seed), hash(seed * 2), hash(seed * 3), 1.0f);
+
+        for (int i = 0; i < spanLength; ++i) {
+            uint2 idx = uint2(id.x + i, id.y);
+            _SortedBuffer[idx] = c;
+        }
+    }
+}
+
+groupshared float3 gs_PixelSortCache[512];
+
+[numthreads(1, 1, 1)]
+void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
+    int spanLength = _SpanBuffer[id.xy];
+
+    if (spanLength >= 1) {
+        float3 currColor = 0.0f;
+        float currValue = 100000;
+        float prevValue = 0;
+
+        for (int k = 0; k < spanLength; ++k) {
+            gs_CustomColorCache[k] = _ColorBuffer[uint2(id.x + k, id.y)].rgb;
+        }
+
+        for (int i = 0; i < spanLength; ++i) {
+            for (int j = 0; j < spanLength; ++j) {
+                float3 c = gs_CustomColorCache[j].rgb;
+
+                float l = luminance(c);
+
+                if (l < currValue && prevValue < l) {
+                    currValue = l;
+                    currColor = c;
+                }
+            }
+
+            uint2 idx = uint2(id.x + i, id.y);
+
+            if (_ReverseSorting)
+                idx = uint2(id.x + (spanLength - i - 1), id.y);
+
+            _SortedBuffer[idx] = float4(currColor, 1.0f);
+            prevValue = currValue;
+            currValue = 100000;
+        }
+    }
+}
+
+[numthreads(8, 8, 1)]
+void CS_Composite(uint3 id : SV_DISPATCHTHREADID) {
+    if (_Mask[id.xy] == 0) {
+        _SortedBuffer[id.xy] = _ColorBuffer[id.xy];
     }
 }
