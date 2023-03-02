@@ -201,8 +201,6 @@ void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
 
 [numthreads(8, 8, 1)]
 void CS_RGBtoHSL(uint3 id : SV_DISPATCHTHREADID) {
-    uint seed = id.x + _BufferWidth * id.y + _BufferWidth * _BufferHeight * ;
-    half offset = hash(seed) * 0.01f;
     _HSLBuffer[id.xy] = half4(RGBtoHSL(_ColorBuffer[id.xy].rgb + offset), 1.0f);
 }
 
