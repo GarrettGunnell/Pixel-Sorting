@@ -21,6 +21,8 @@ public class PixelSorter : MonoBehaviour {
 
     public bool visualizeSpans = false;
 
+    public bool debugSorting = false;
+
     public bool horizontalSorting = false;
 
     public bool reverseSorting = false;
@@ -125,7 +127,8 @@ public class PixelSorter : MonoBehaviour {
             pixelSorter.SetTexture(9, "_ColorBuffer", colorTex);
             pixelSorter.SetTexture(9, "_SortedBuffer", sortedTex);
             
-            pixelSorter.Dispatch(9, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
+            if (!debugSorting)
+                pixelSorter.Dispatch(9, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
         }
         if (debugMask)
             Graphics.Blit(maskTex, destination);
