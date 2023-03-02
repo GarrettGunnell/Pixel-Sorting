@@ -21,6 +21,8 @@ public class PixelSorter : MonoBehaviour {
 
     public bool visualizeSpans = false;
 
+    public bool horizontalSorting = false;
+
     public bool reverseSorting = false;
 
     private RenderTexture maskTex, spanTex, colorTex, sortedTex;
@@ -89,6 +91,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
+        pixelSorter.SetInt("_HorizontalSorting", horizontalSorting ? 1 : 0);
         pixelSorter.SetTexture(0, "_Mask", maskTex);
         pixelSorter.SetTexture(0, "_ColorBuffer", colorTex);
 
@@ -100,7 +103,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetTexture(6, "_SpanBuffer", spanTex);
         pixelSorter.SetTexture(6, "_Mask", maskTex);
 
-        pixelSorter.Dispatch(6, 1, Screen.height, 1);
+        pixelSorter.Dispatch(6, horizontalSorting ? 1 : Screen.width, horizontalSorting ? Screen.height : 1, 1);
 
         pixelSorter.SetTexture(5, "_ClearBuffer", sortedTex);
         pixelSorter.Dispatch(5, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1);
