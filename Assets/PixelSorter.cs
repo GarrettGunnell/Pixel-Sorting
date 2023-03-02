@@ -103,6 +103,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetFloat("_HighThreshold", highThreshold);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
+        pixelSorter.SetInt("_FrameCount", Time.frameCount);
         pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
         pixelSorter.SetInt("_HorizontalSorting", horizontalSorting ? 1 : 0);
         pixelSorter.SetInt("_SortBy", (int)sortBy);

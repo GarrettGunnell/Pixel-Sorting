@@ -1,3 +1,13 @@
+half luminance(half3 color) {
+    return dot(color, half3(0.299f, 0.587f, 0.114f));
+}
+
+half hash(uint n) {
+    // integer hash copied from Hugo Elias
+	n = (n << 13U) ^ n;
+    n = n * (n * n * 15731U + 0x789221U) + 0x1376312589U;
+    return half(n & uint(0x7fffffffU)) / half(0x7fffffff);
+}
 
 // Conversions from https://www.chilliant.com/rgb2hsv.html
 float Epsilon = 1e-10;
