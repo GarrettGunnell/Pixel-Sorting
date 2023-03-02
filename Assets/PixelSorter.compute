@@ -201,7 +201,7 @@ void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
 
 [numthreads(8, 8, 1)]
 void CS_RGBtoHSL(uint3 id : SV_DISPATCHTHREADID) {
-    _HSLBuffer[id.xy] = half4(RGBtoHSL(_ColorBuffer[id.xy].rgb + offset), 1.0f);
+    _HSLBuffer[id.xy] = half4(RGBtoHSL(_ColorBuffer[id.xy].rgb), 1.0f);
 }
 
 half sortMethod(half3 c) {
@@ -209,8 +209,10 @@ half sortMethod(half3 c) {
         return c.b;
     else if (_SortBy == 1)
         return c.g;
-    else
+    else if (_SortBy == 2)
         return c.r;
+    else
+        return c.r + c.g + c.b;
 }
 
 groupshared half3 gs_PixelSortCache[1080];
