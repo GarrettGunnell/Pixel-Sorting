@@ -247,9 +247,12 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
         float3 currColor = 0.0f;
         float currValue = 100000;
         float prevValue = 0;
+        
+        uint2 idx = 0;
 
         for (int k = 0; k < spanLength; ++k) {
-            gs_CustomColorCache[k] = _ColorBuffer[uint2(id.x + k, id.y)].rgb;
+            idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
+            gs_CustomColorCache[k] = _ColorBuffer[idx].rgb;
         }
 
         for (int i = 0; i < spanLength; ++i) {
@@ -264,10 +267,10 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
                 }
             }
 
-            uint2 idx = uint2(id.x + i, id.y);
+            idx = _HorizontalSorting ? uint2(id.x + i, id.y) : uint2(id.x, id.y + i);
 
             if (_ReverseSorting)
-                idx = uint2(id.x + (spanLength - i - 1), id.y);
+                idx = _HorizontalSorting ? uint2(id.x + (spanLength - i - 1), id.y) : uint2(id.x, id.y + (spanLength - i - 1));
 
             _SortedBuffer[idx] = float4(currColor, 1.0f);
             prevValue = currValue;
