@@ -4,7 +4,6 @@
 #pragma kernel CS_TestSelectionSort
 #pragma kernel CS_TestBitonicSort
 #pragma kernel CS_TestCustomSort
-#pragma kernel CS_TestCustomSortOnImage
 #pragma kernel CS_ClearBuffer
 #pragma kernel CS_IdentifySpans
 #pragma kernel CS_VisualizeSpans
@@ -17,27 +16,27 @@ float _LowThreshold, _HighThreshold;
 
 uint _BufferWidth, _BufferHeight;
 
-int _ReverseSorting, _HorizontalSorting;
+int _ReverseSorting, _HorizontalSorting, _SortBy;
 
-RWTexture2D<half> _Mask;
-RWTexture2D<half4> _ColorBuffer;
-RWTexture2D<half4> _SortedBuffer;
-RWTexture2D<half4> _HSLBuffer;
-RWTexture2D<half> _SpanBuffer;
+RWTexture2D<float> _Mask;
+RWTexture2D<float4> _ColorBuffer;
+RWTexture2D<float4> _SortedBuffer;
+RWTexture2D<float4> _HSLBuffer;
+RWTexture2D<float> _SpanBuffer;
 
-RWTexture2D<half4> _ClearBuffer;
+RWTexture2D<float4> _ClearBuffer;
 
 RWStructuredBuffer<uint> _NumberBuffer;
 RWStructuredBuffer<uint> _SortedNumberBuffer;
 
-half luminance(half3 color) {
-    return dot(color, half3(0.299f, 0.587f, 0.114f));
+float luminance(float3 color) {
+    return dot(color, float3(0.299f, 0.587f, 0.114f));
 }
 
 [numthreads(8,8,1)]
 void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
-    half4 col = saturate(_ColorBuffer[id.xy]);
-    half l = luminance(col.rgb);
+    float4 col = saturate(_ColorBuffer[id.xy]);
+    float l = luminance(col.rgb);
 
     int result = 1;
     if (l < _LowThreshold || _HighThreshold < l)
@@ -88,15 +87,15 @@ void compareAndSwap(int2 idx) {
 
 void flip(int h, uint t) {
     int q = ((2 * t) / h) * h;
-    uint half_h = h / 2;
-    int2 indices = q + int2(t % half_h, h - (t % half_h) - 1);
+    uint float_h = h / 2;
+    int2 indices = q + int2(t % float_h, h - (t % float_h) - 1);
     compareAndSwap(indices);
 }
 
 void disperse(int h, uint t) {
     int q = ((2 * t) / h) * h;
-    uint half_h = h / 2;
-    int2 indices = q + int2(t % half_h, (t % half_h) + half_h);
+    uint float_h = h / 2;
+    int2 indices = q + int2(t % float_h, (t % float_h) + float_h);
     compareAndSwap(indices);
 }
 
@@ -131,56 +130,25 @@ void CS_TestBitonicSort(uint3 id : SV_DISPATCHTHREADID) {
     _SortedBuffer[uint2(t.x * 2 + 1, t.y)] = float4(gs_ColorCache[t.x * 2 + 1], 1.0f);
 }
 
-// I'm sure this has a name somewhere but I made up this sorting method to minimize writes to O(n) while reads stay at a constant O(n^2)
+// Jank insertion sort to avoid swaps entirely and reduce texture writes to O(n)
 [numthreads(1, 1, 1)]
 void CS_TestCustomSort(uint3 id : SV_DISPATCHTHREADID) {
-    uint minNumber = 100000;
-    uint prevMinNumber = 0;
+    uint minNumber = 10000;
+    uint minIndex = 0;
 
     for (int i = 0; i < 16; ++i) {
         for (int j = 0; j < 16; ++j) {
             uint n = _NumberBuffer[j];
 
-            if (n < minNumber && prevMinNumber < n) {
+            if (n < minNumber) {
+                minIndex = j;
                 minNumber = n;
             }
         }
 
         _SortedNumberBuffer[i] = minNumber;
-        prevMinNumber = minNumber;
-        minNumber = 100000;
-    }
-}
-
-#define CUSTOM_SORT_ELEMENTS 512
-
-groupshared float3 gs_CustomColorCache[CUSTOM_SORT_ELEMENTS];
-
-[numthreads(1, 1, 1)]
-void CS_TestCustomSortOnImage(uint3 id : SV_DISPATCHTHREADID) {
-    half3 minColor = 0.0f;
-    half minValue = 100000;
-    half prevMinValue = 0;
-
-    for (int k = 0; k < CUSTOM_SORT_ELEMENTS; ++k) {
-        gs_CustomColorCache[k] = _ColorBuffer[uint2(k, id.y)].rgb;
-    }
-
-    for (int i = 0; i < CUSTOM_SORT_ELEMENTS; ++i) {
-        for (int j = 0; j < CUSTOM_SORT_ELEMENTS; ++j) {
-            half3 c = gs_CustomColorCache[j];
-
-            half l = luminance(c);
-
-            if (l < minValue && prevMinValue < l) {
-                minValue = l;
-                minColor = c;
-            }
-        }
-
-        _SortedBuffer[uint2(i, id.y)] = half4(minColor, 1.0f);
-        prevMinValue = minValue;
-        minValue = 100000;
+        _NumberBuffer[minIndex] = 100000;
+        minNumber = 10000;
     }
 }
 
@@ -233,7 +201,7 @@ void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
 
     if (spanLength >= 1) {
         uint seed = id.x + 512 * id.y + 512 * 512;
-        half4 c = half4(hash(seed), hash(seed * 2), hash(seed * 3), 1.0f);
+        float4 c = float4(hash(seed), hash(seed * 2), hash(seed * 3), 1.0f);
 
         for (int i = 0; i < spanLength; ++i) {
             uint2 idx = _HorizontalSorting ? uint2(id.x + i, id.y) : uint2(id.x, id.y + i);
@@ -247,6 +215,15 @@ void CS_RGBtoHSL(uint3 id : SV_DISPATCHTHREADID) {
     _HSLBuffer[id.xy] = float4(RGBtoHSL(_ColorBuffer[id.xy].rgb), 1.0f);
 }
 
+float sortMethod(float3 c) {
+    if (_SortBy == 0)
+        return c.b;
+    else if (_SortBy == 1)
+        return c.g;
+    else
+        return c.r;
+}
+
 groupshared float3 gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
@@ -254,26 +231,27 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
     int spanLength = _SpanBuffer[id.xy];
 
     if (spanLength >= 1) {
-        half3 currColor = 0.0f;
-        half currValue = 100000;
-        half prevValue = 0;
+        float3 currColor = 0.0f;
+        float currValue = 10000;
+        uint minIndex = 0;
         
         uint2 idx = 0;
 
         for (int k = 0; k < spanLength; ++k) {
             idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
-            gs_CustomColorCache[k] = _HSLBuffer[idx].rgb;
+            gs_PixelSortCache[k] = _HSLBuffer[idx].rgb;
         }
 
         for (int i = 0; i < spanLength; ++i) {
             for (int j = 0; j < spanLength; ++j) {
-                half3 c = gs_CustomColorCache[j].rgb;
+                float3 c = gs_PixelSortCache[j].rgb;
 
-                half l = c.b;
+                float l = sortMethod(c);
 
-                if (l < currValue && prevValue < l) {
+                if (l < currValue) {
                     currValue = l;
                     currColor = c;
+                    minIndex = j;
                 }
             }
 
@@ -282,9 +260,9 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
             if (_ReverseSorting)
                 idx = _HorizontalSorting ? uint2(id.x + (spanLength - i - 1), id.y) : uint2(id.x, id.y + (spanLength - i - 1));
 
-            _SortedBuffer[idx] = half4(currColor, 1.0f);
-            prevValue = currValue;
-            currValue = 100000;
+            _SortedBuffer[idx] = float4(currColor, 1.0f);
+            gs_PixelSortCache[minIndex] = 100000;
+            currValue = 10000;
         }
     }
 }
