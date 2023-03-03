@@ -215,7 +215,7 @@ half sortMethod(half3 c) {
         return c.r + c.g + c.b;
 }
 
-groupshared half3 gs_PixelSortCache[1080];
+groupshared half gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
 void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
@@ -226,32 +226,31 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
 
         for (int k = 0; k < spanLength; ++k) {
             idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
-            gs_PixelSortCache[k] = _HSLBuffer[idx].rgb;
+            gs_PixelSortCache[k] = sortMethod(_HSLBuffer[idx].rgb);
         }
 
-        half3 currColor = gs_PixelSortCache[0];
-        half currValue = sortMethod(currColor);
+        half currValue = gs_PixelSortCache[0];
         uint minIndex = 0;
 
         for (int i = 0; i < spanLength; ++i) {
             for (int j = 1; j < spanLength; ++j) {
-                half3 c = gs_PixelSortCache[j].rgb;
+                half v = gs_PixelSortCache[j];
 
-                half l = sortMethod(c);
+                half l = v;
 
                 if (l < currValue) {
                     currValue = l;
-                    currColor = c;
                     minIndex = j;
                 }
             }
 
             idx = _HorizontalSorting ? uint2(id.x + i, id.y) : uint2(id.x, id.y + i);
+            uint2 colorIdx = _HorizontalSorting ? uint2(id.x + minIndex, id.y) : uint2(id.x, id.y + minIndex);
 
             if (_ReverseSorting)
                 idx = _HorizontalSorting ? uint2(id.x + (spanLength - i - 1), id.y) : uint2(id.x, id.y + (spanLength - i - 1));
 
-            _SortedBuffer[idx] = half4(currColor, 1.0f);
+            _SortedBuffer[idx] = _HSLBuffer[colorIdx];
             gs_PixelSortCache[minIndex] = 100000;
             currValue = 10000;
         }
