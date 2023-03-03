@@ -323,6 +323,8 @@ MonoBehaviour:
   debugMask: 0
   debugSpans: 0
   visualizeSpans: 0
+  maxSpanLength: 1080
+  maxRandomSpanOffset: 0
   debugSorting: 0
   sortBy: 2
   horizontalSorting: 0

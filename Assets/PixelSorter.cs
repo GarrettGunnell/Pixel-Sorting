@@ -23,6 +23,12 @@ public class PixelSorter : MonoBehaviour {
 
     public bool visualizeSpans = false;
 
+    [Range(0, 1080)]
+    public int maxSpanLength = 1080;
+
+    [Range(0, 512)]
+    public int maxRandomSpanOffset = 0;
+
     public bool debugSorting = false;
 
     public enum SortMode {
@@ -117,6 +123,8 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_FrameCount", Time.frameCount);
+        pixelSorter.SetInt("_SpanLimit", maxSpanLength);
+        pixelSorter.SetInt("_MaxRandomOffset", maxRandomSpanOffset);
         pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
         pixelSorter.SetInt("_HorizontalSorting", horizontalSorting ? 1 : 0);
         pixelSorter.SetInt("_SortBy", (int)sortBy);

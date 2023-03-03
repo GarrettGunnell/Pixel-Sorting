@@ -14,7 +14,7 @@
 
 half _LowThreshold, _HighThreshold;
 
-uint _BufferWidth, _BufferHeight, _FrameCount;
+uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit, _MaxRandomOffset;
 
 int _ReverseSorting, _HorizontalSorting, _SortBy;
 
@@ -155,26 +155,28 @@ void CS_ClearBuffer(uint3 id : SV_DISPATCHTHREADID) {
 
 [numthreads(1, 1, 1)]
 void CS_IdentifySpans(uint3 id : SV_DISPATCHTHREADID) {
+    uint seed = id.x + _BufferWidth * id.y + _BufferWidth * _BufferHeight;
     uint2 idx = 0;
     uint pos = 0;
-    int spanStartIndex = 0;
-    int spanLength = 0;
+    uint spanStartIndex = 0;
+    uint spanLength = 0;
 
-    uint spanLimit = _HorizontalSorting ? _BufferWidth : _BufferHeight;
+    uint screenLimit = _HorizontalSorting ? _BufferWidth : _BufferHeight;
+    uint spanLimit = _SpanLimit - (hash(seed) * _MaxRandomOffset);
 
-    while (pos < spanLimit) {
+    while (pos < screenLimit) {
         idx = _HorizontalSorting ? uint2(pos, id.y) : uint2(id.x, pos);
 
         int mask = _Mask[idx];
         pos++;
 
-        if (mask != 0) {
-            spanLength++;
-        } else {
+        if (mask == 0 || spanLength >= spanLimit) {
             idx = _HorizontalSorting ? uint2(spanStartIndex, id.y) : uint2(id.x, spanStartIndex);
-            _SpanBuffer[idx] = spanLength;
+            _SpanBuffer[idx] = mask == 1 ? spanLength + 1 : spanLength;
             spanStartIndex = pos;
             spanLength = 0;
+        } else {
+            spanLength++;
         }
     }
 
@@ -236,10 +238,8 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
             for (int j = 1; j < spanLength; ++j) {
                 half v = gs_PixelSortCache[j];
 
-                half l = v;
-
-                if (l < currValue) {
-                    currValue = l;
+                if (v < currValue) {
+                    currValue = v;
                     minIndex = j;
                 }
             }
