@@ -9,6 +9,8 @@ public class PixelSorter : MonoBehaviour {
 
     public bool useImage = false;
 
+    public bool animate = false;
+
     [Range(0.0f, 0.5f)]
     public float lowThreshold = 0.2f;
     
@@ -33,6 +35,10 @@ public class PixelSorter : MonoBehaviour {
     public bool horizontalSorting = false;
 
     public bool reverseSorting = false;
+
+    private float animatedLowThreshold = 0.5f;
+    private float animatedHighThreshold = 0.5f;
+    private int direction = 1;
 
     private RenderTexture maskTex, spanTex, colorTex, hslTex, sortedTex;
 
@@ -89,6 +95,13 @@ public class PixelSorter : MonoBehaviour {
     void Update() {
         if (Screen.width != maskTex.width)
             RegenerateRenderTextures();
+
+        if (animate) {
+            animatedHighThreshold += 0.15f * Time.deltaTime * direction;
+            animatedLowThreshold += -0.15f * Time.deltaTime * direction;
+
+            if (animatedHighThreshold < 0.5f || 1.0f < animatedHighThreshold) direction *= -1;
+        }
     }
 
     void OnDisable() {
@@ -99,8 +112,8 @@ public class PixelSorter : MonoBehaviour {
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
         Graphics.Blit(useImage ? image : source, colorTex);
 
-        pixelSorter.SetFloat("_LowThreshold", lowThreshold);
-        pixelSorter.SetFloat("_HighThreshold", highThreshold);
+        pixelSorter.SetFloat("_LowThreshold", animate ? animatedLowThreshold : lowThreshold);
+        pixelSorter.SetFloat("_HighThreshold", animate ? animatedHighThreshold : highThreshold);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_FrameCount", Time.frameCount);

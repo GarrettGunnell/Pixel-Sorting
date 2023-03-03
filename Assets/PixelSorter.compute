@@ -219,22 +219,22 @@ groupshared half3 gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
 void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
-    int spanLength = _SpanBuffer[id.xy];
+    const int spanLength = _SpanBuffer[id.xy];
 
     if (spanLength >= 1) {
-        half3 currColor = 0.0f;
-        half currValue = 10000;
-        uint minIndex = 0;
-        
-        uint2 idx = 0;
+        uint2 idx;
 
         for (int k = 0; k < spanLength; ++k) {
             idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
             gs_PixelSortCache[k] = _HSLBuffer[idx].rgb;
         }
 
+        half3 currColor = gs_PixelSortCache[0];
+        half currValue = sortMethod(currColor);
+        uint minIndex = 0;
+
         for (int i = 0; i < spanLength; ++i) {
-            for (int j = 0; j < spanLength; ++j) {
+            for (int j = 1; j < spanLength; ++j) {
                 half3 c = gs_PixelSortCache[j].rgb;
 
                 half l = sortMethod(c);

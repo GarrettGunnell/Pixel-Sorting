@@ -317,9 +317,13 @@ MonoBehaviour:
   pixelSorter: {fileID: 7200000, guid: 8f615c61fd27b534abe7edb17b6f813f, type: 3}
   image: {fileID: 2800000, guid: 09d7accfe4eb4ab4d9f6294af3f10893, type: 3}
   useImage: 1
-  lowThreshold: 0.2
-  highThreshold: 0.8
+  animate: 0
+  lowThreshold: 0.42
+  highThreshold: 0.75
   debugMask: 0
   debugSpans: 0
   visualizeSpans: 0
-  reverseSorting: 0
+  debugSorting: 0
+  sortBy: 2
+  horizontalSorting: 0
+  reverseSorting: 1
