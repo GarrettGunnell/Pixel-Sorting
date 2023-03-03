@@ -16,10 +16,13 @@ half _LowThreshold, _HighThreshold;
 
 uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit, _MaxRandomOffset;
 
-int _ReverseSorting, _HorizontalSorting, _SortBy;
+float _FrameTime, _AnimationSpeed;
+
+int _ReverseSorting, _HorizontalSorting, _SortBy, _MaskRandomOffset;
 
 RWTexture2D<half> _Mask;
 RWTexture2D<half4> _ColorBuffer;
+Texture2D<half4> _ColorTex;
 RWTexture2D<half4> _SortedBuffer;
 RWTexture2D<half4> _HSLBuffer;
 RWTexture2D<half> _SpanBuffer;
@@ -29,9 +32,16 @@ RWTexture2D<half4> _ClearBuffer;
 RWStructuredBuffer<uint> _NumberBuffer;
 RWStructuredBuffer<uint> _SortedNumberBuffer;
 
+SamplerState linearClampSampler;
+
 [numthreads(8,8,1)]
 void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
-    half4 col = saturate(_ColorBuffer[id.xy]);
+    uint seed = _HorizontalSorting ? id.y * _BufferHeight : id.x * _BufferWidth;
+    int rand = hash(seed + (_FrameTime * _AnimationSpeed)) * _MaskRandomOffset;
+    uint2 o = _HorizontalSorting ? uint2(rand, 0) : uint2(0, rand);
+
+    half4 col = saturate(_ColorTex.SampleLevel(linearClampSampler, (id.xy + o) / float2(_BufferWidth, _BufferHeight), 0));
+
     half l = luminance(col.rgb);
 
     int result = 1;

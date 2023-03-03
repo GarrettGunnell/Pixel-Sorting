@@ -321,6 +321,7 @@ MonoBehaviour:
   lowThreshold: 0.42
   highThreshold: 0.75
   debugMask: 0
+  maskRandomOffset: 0
   debugSpans: 0
   visualizeSpans: 0
   maxSpanLength: 1080
