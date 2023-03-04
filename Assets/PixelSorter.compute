@@ -235,8 +235,10 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
     if (spanLength >= 1) {
         uint2 idx;
 
+        uint2 direction = _HorizontalSorting ? uint2(1, 0) : uint2(0, 1);
+
         for (int k = 0; k < spanLength; ++k) {
-            idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
+            idx = id.xy + k * direction;
             gs_PixelSortCache[k] = _HSLBuffer[idx];
         }
 
@@ -253,11 +255,11 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
                 }
             }
 
-            idx = _HorizontalSorting ? uint2(id.x + i, id.y) : uint2(id.x, id.y + i);
-            uint2 colorIdx = _HorizontalSorting ? uint2(id.x + minIndex, id.y) : uint2(id.x, id.y + minIndex);
+            idx = id.xy + i * direction;
+            uint2 colorIdx = id.xy + minIndex * direction;
 
             if (_ReverseSorting)
-                idx = _HorizontalSorting ? uint2(id.x + (spanLength - i - 1), id.y) : uint2(id.x, id.y + (spanLength - i - 1));
+                idx = id.xy + (spanLength - i - 1) * direction;
 
             _SortedBuffer[idx] = _ColorBuffer[colorIdx];
             gs_PixelSortCache[minIndex] = 100000;
