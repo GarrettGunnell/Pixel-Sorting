@@ -9,7 +9,8 @@ public class PixelSorter : MonoBehaviour {
 
     public bool useImage = false;
 
-    public bool animate = false;
+    public bool animateThresholds = false;
+    public bool resetAnimation = false;
 
     [Range(0.0f, 0.5f)]
     public float lowThreshold = 0.2f;
@@ -50,7 +51,6 @@ public class PixelSorter : MonoBehaviour {
 
     private float animatedLowThreshold = 0.5f;
     private float animatedHighThreshold = 0.5f;
-    private int direction = 1;
 
     private int createMaskPass, testSelectionSortPass, testBitonicSortPass, testCustomSortPass, clearBufferPass, indentifySpansPass, visualizeSpansPass, rgbToHslPass, pixelSortPass, hsltoRgbPass, compositePass;
 
@@ -123,11 +123,17 @@ public class PixelSorter : MonoBehaviour {
         if (Screen.width != maskTex.width)
             RegenerateRenderTextures();
 
-        if (animate) {
-            animatedHighThreshold += 0.15f * Time.deltaTime * direction;
-            animatedLowThreshold += -0.15f * Time.deltaTime * direction;
+        if (resetAnimation) {
+            animatedHighThreshold = 0.5f;
+            animatedLowThreshold = 0.5f;
+            resetAnimation = false;
+        }
 
-            if (animatedHighThreshold < 0.5f || 1.0f < animatedHighThreshold) direction *= -1;
+        if (animateThresholds) {
+            if (animatedHighThreshold < highThreshold)
+                animatedHighThreshold += 0.15f * Time.deltaTime;
+            if (animatedLowThreshold > lowThreshold)
+                animatedLowThreshold -= 0.15f * Time.deltaTime;
         }
     }
 
@@ -139,8 +145,8 @@ public class PixelSorter : MonoBehaviour {
     private void OnRenderImage(RenderTexture source, RenderTexture destination) {
         Graphics.Blit(useImage ? image : source, colorTex);
 
-        pixelSorter.SetFloat("_LowThreshold", animate ? animatedLowThreshold : lowThreshold);
-        pixelSorter.SetFloat("_HighThreshold", animate ? animatedHighThreshold : highThreshold);
+        pixelSorter.SetFloat("_LowThreshold", animateThresholds ? animatedLowThreshold : lowThreshold);
+        pixelSorter.SetFloat("_HighThreshold", animateThresholds ? animatedHighThreshold : highThreshold);
         pixelSorter.SetFloat("_FrameTime", Time.time);
         pixelSorter.SetFloat("_AnimationSpeed", animationSpeed);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
