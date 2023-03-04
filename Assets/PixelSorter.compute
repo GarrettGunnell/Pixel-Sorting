@@ -13,11 +13,11 @@
 
 half _LowThreshold, _HighThreshold;
 
-uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit, _MaxRandomOffset;
+uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit;
 
-float _FrameTime, _AnimationSpeed;
+float _FrameTime, _AnimationSpeed, _MaskRandomOffset;
 
-int _ReverseSorting, _HorizontalSorting, _SortBy, _MaskRandomOffset;
+int _InvertMask, _ReverseSorting, _HorizontalSorting, _SortBy, _MaxRandomOffset;
 
 RWTexture2D<half> _Mask;
 RWTexture2D<half4> _ColorBuffer;
@@ -36,10 +36,15 @@ SamplerState linearClampSampler;
 [numthreads(8,8,1)]
 void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
     uint seed = _HorizontalSorting ? id.y * _BufferHeight : id.x * _BufferWidth;
-    int rand = hash(seed + (_FrameTime * _AnimationSpeed)) * _MaskRandomOffset;
-    uint2 o = _HorizontalSorting ? uint2(rand, 0) : uint2(0, rand);
+    float rand = hash(seed + (_FrameTime * _AnimationSpeed)) * _MaskRandomOffset;
 
-    half4 col = saturate(_ColorTex.SampleLevel(linearClampSampler, (id.xy + o) / float2(_BufferWidth, _BufferHeight), 0));
+
+    float2 o = _HorizontalSorting ? float2(rand, 0) : float2(0, rand);
+
+    float2 uv = id.xy / float2(_BufferWidth, _BufferHeight);
+    uv += o;
+
+    half4 col = saturate(_ColorTex.SampleLevel(linearClampSampler, uv, 0));
 
     half l = luminance(col.rgb);
 
@@ -47,7 +52,7 @@ void CS_CreateMask(uint3 id : SV_DispatchThreadID) {
     if (l < _LowThreshold || _HighThreshold < l)
         result = 0;
     
-    _Mask[id.xy] = result;
+    _Mask[id.xy] = _InvertMask ? 1 - result : result;
 }
 
 // Selection Sort, so performant!!!!
@@ -217,8 +222,8 @@ half sortMethod(half3 c) {
         return c.g;
     else if (_SortBy == 2)
         return c.r;
-    else
-        return c.r + c.g + c.b;
+
+    return 0;
 }
 
 [numthreads(8, 8, 1)]

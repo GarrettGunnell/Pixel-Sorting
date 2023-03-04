@@ -10,7 +10,11 @@ public class PixelSorter : MonoBehaviour {
     public bool useImage = false;
 
     public bool animateThresholds = false;
+
     public bool resetAnimation = false;
+
+    [Range(0.0f, 1.0f)]
+    public float animationSpeed = 0;
 
     [Range(0.0f, 0.5f)]
     public float lowThreshold = 0.2f;
@@ -20,11 +24,13 @@ public class PixelSorter : MonoBehaviour {
 
     public bool debugMask = false;
 
-    [Range(-50, 50)]
-    public int maskRandomOffset = 0;
+    public bool invertMask = false;
+
+    [Range(-0.1f, 0.1f)]
+    public float maskRandomOffset = 0;
 
     [Range(0, 30)]
-    public float animationSpeed = 0;
+    public float offsetAnimationSpeed = 0;
 
     public bool debugSpans = false;
 
@@ -41,8 +47,7 @@ public class PixelSorter : MonoBehaviour {
     public enum SortMode {
         Lightness = 0,
         Saturation,
-        Hue,
-        Intensity
+        Hue
     } public SortMode sortBy;
 
     public bool horizontalSorting = false;
@@ -130,9 +135,9 @@ public class PixelSorter : MonoBehaviour {
 
         if (animateThresholds) {
             if (animatedHighThreshold < highThreshold)
-                animatedHighThreshold += 0.15f * Time.deltaTime;
+                animatedHighThreshold += animationSpeed * Time.deltaTime;
             if (animatedLowThreshold > lowThreshold)
-                animatedLowThreshold -= 0.15f * Time.deltaTime;
+                animatedLowThreshold -= animationSpeed * Time.deltaTime;
         }
     }
 
@@ -147,15 +152,16 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetFloat("_LowThreshold", animateThresholds ? animatedLowThreshold : lowThreshold);
         pixelSorter.SetFloat("_HighThreshold", animateThresholds ? animatedHighThreshold : highThreshold);
         pixelSorter.SetFloat("_FrameTime", Time.time);
-        pixelSorter.SetFloat("_AnimationSpeed", animationSpeed);
+        pixelSorter.SetFloat("_AnimationSpeed", offsetAnimationSpeed);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_FrameCount", Time.frameCount);
         pixelSorter.SetInt("_SpanLimit", maxSpanLength);
         pixelSorter.SetInt("_MaxRandomOffset", maxRandomSpanOffset);
-        pixelSorter.SetInt("_MaskRandomOffset", maskRandomOffset);
+        pixelSorter.SetFloat("_MaskRandomOffset", maskRandomOffset);
         pixelSorter.SetInt("_ReverseSorting", reverseSorting ? 1 : 0);
         pixelSorter.SetInt("_HorizontalSorting", horizontalSorting ? 1 : 0);
+        pixelSorter.SetInt("_InvertMask", invertMask ? 1 : 0);
         pixelSorter.SetInt("_SortBy", (int)sortBy);
         pixelSorter.SetTexture(createMaskPass, "_Mask", maskTex);
         pixelSorter.SetTexture(createMaskPass, "_ColorTex", colorTex);
