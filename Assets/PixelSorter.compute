@@ -7,9 +7,8 @@
 #pragma kernel CS_ClearBuffer
 #pragma kernel CS_IdentifySpans
 #pragma kernel CS_VisualizeSpans
-#pragma kernel CS_RGBtoHSL
+#pragma kernel CS_RGBtoSortValue
 #pragma kernel CS_PixelSort
-#pragma kernel CS_HSLtoRGB
 #pragma kernel CS_Composite
 
 half _LowThreshold, _HighThreshold;
@@ -24,7 +23,7 @@ RWTexture2D<half> _Mask;
 RWTexture2D<half4> _ColorBuffer;
 Texture2D<half4> _ColorTex;
 RWTexture2D<half4> _SortedBuffer;
-RWTexture2D<half4> _HSLBuffer;
+RWTexture2D<half> _HSLBuffer;
 RWTexture2D<half> _SpanBuffer;
 
 RWTexture2D<half4> _ClearBuffer;
@@ -211,11 +210,6 @@ void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
     }
 }
 
-[numthreads(8, 8, 1)]
-void CS_RGBtoHSL(uint3 id : SV_DISPATCHTHREADID) {
-    _HSLBuffer[id.xy] = half4(RGBtoHSL(_ColorBuffer[id.xy].rgb), 1.0f);
-}
-
 half sortMethod(half3 c) {
     if (_SortBy == 0)
         return c.b;
@@ -225,6 +219,11 @@ half sortMethod(half3 c) {
         return c.r;
     else
         return c.r + c.g + c.b;
+}
+
+[numthreads(8, 8, 1)]
+void CS_RGBtoSortValue(uint3 id : SV_DISPATCHTHREADID) {
+    _HSLBuffer[id.xy] = sortMethod(RGBtoHSL(_ColorBuffer[id.xy].rgb));
 }
 
 groupshared half gs_PixelSortCache[1080];
@@ -238,7 +237,7 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
 
         for (int k = 0; k < spanLength; ++k) {
             idx = _HorizontalSorting ? uint2(id.x + k, id.y) : uint2(id.x, id.y + k);
-            gs_PixelSortCache[k] = sortMethod(_HSLBuffer[idx].rgb);
+            gs_PixelSortCache[k] = _HSLBuffer[idx];
         }
 
         half currValue = gs_PixelSortCache[0];
@@ -260,16 +259,11 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
             if (_ReverseSorting)
                 idx = _HorizontalSorting ? uint2(id.x + (spanLength - i - 1), id.y) : uint2(id.x, id.y + (spanLength - i - 1));
 
-            _SortedBuffer[idx] = _HSLBuffer[colorIdx];
+            _SortedBuffer[idx] = _ColorBuffer[colorIdx];
             gs_PixelSortCache[minIndex] = 100000;
             currValue = 10000;
         }
     }
-}
-
-[numthreads(8, 8, 1)]
-void CS_HSLtoRGB(uint3 id : SV_DISPATCHTHREADID) {
-    _SortedBuffer[id.xy] = half4(HSLtoRGB(_SortedBuffer[id.xy].rgb), 1.0f);
 }
 
 [numthreads(8, 8, 1)]
