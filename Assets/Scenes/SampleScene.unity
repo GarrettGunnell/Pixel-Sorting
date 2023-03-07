@@ -315,7 +315,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pixelSorter: {fileID: 7200000, guid: 8f615c61fd27b534abe7edb17b6f813f, type: 3}
-  image: {fileID: 2800000, guid: 45eac1a14840e354f92fc053e8ca0cee, type: 3}
+  image: {fileID: 2800000, guid: 09d7accfe4eb4ab4d9f6294af3f10893, type: 3}
   useImage: 1
   animateThresholds: 0
   resetAnimation: 0
@@ -323,6 +323,7 @@ MonoBehaviour:
   lowThreshold: 0.42
   highThreshold: 0.75
   debugMask: 0
+  invertMask: 0
   maskRandomOffset: 0
   offsetAnimationSpeed: 0
   debugSpans: 0

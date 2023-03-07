@@ -50,6 +50,9 @@ public class PixelSorter : MonoBehaviour {
         Hue
     } public SortMode sortBy;
 
+    [Range(0.1f, 10.0f)]
+    public float smoothness = 1.0f;
+
     public bool horizontalSorting = false;
 
     public bool reverseSorting = false;
@@ -153,6 +156,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetFloat("_HighThreshold", animateThresholds ? animatedHighThreshold : highThreshold);
         pixelSorter.SetFloat("_FrameTime", Time.time);
         pixelSorter.SetFloat("_AnimationSpeed", offsetAnimationSpeed);
+        pixelSorter.SetFloat("_Smoothness", smoothness);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_FrameCount", Time.frameCount);

@@ -15,7 +15,7 @@ half _LowThreshold, _HighThreshold;
 
 uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit;
 
-float _FrameTime, _AnimationSpeed, _MaskRandomOffset;
+float _FrameTime, _AnimationSpeed, _MaskRandomOffset, _Smoothness;
 
 int _InvertMask, _ReverseSorting, _HorizontalSorting, _SortBy, _MaxRandomOffset;
 
@@ -228,9 +228,8 @@ half sortMethod(half3 c) {
 
 [numthreads(8, 8, 1)]
 void CS_RGBtoSortValue(uint3 id : SV_DISPATCHTHREADID) {
-    _HSLBuffer[id.xy] = sortMethod(RGBtoHSL(_ColorBuffer[id.xy].rgb));
+    _HSLBuffer[id.xy] = sortMethod(RGBtoHSL(pow(abs(_ColorBuffer[id.xy].rgb), _Smoothness)));
 }
-
 groupshared half gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
