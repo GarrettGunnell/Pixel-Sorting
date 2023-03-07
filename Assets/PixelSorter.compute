@@ -235,40 +235,51 @@ groupshared half gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
 void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
-    const int spanLength = _SpanBuffer[id.xy];
+    const uint spanLength = _SpanBuffer[id.xy];
 
     if (spanLength >= 1) {
         uint2 idx;
 
         uint2 direction = _HorizontalSorting ? uint2(1, 0) : uint2(0, 1);
 
-        for (int k = 0; k < spanLength; ++k) {
+        for (uint k = 0; k < spanLength; ++k) {
             idx = id.xy + k * direction;
             gs_PixelSortCache[k] = _HSLBuffer[idx];
         }
 
-        half currValue = gs_PixelSortCache[0];
+        half minValue = gs_PixelSortCache[0];
+        half maxValue = gs_PixelSortCache[0];
         uint minIndex = 0;
+        uint maxIndex = 0;
 
-        for (int i = 0; i < spanLength; ++i) {
-            for (int j = 1; j < spanLength; ++j) {
+        for (uint i = 0; i < (spanLength / 2) + 1; ++i) {
+            for (uint j = 1; j < spanLength; ++j) {
                 half v = gs_PixelSortCache[j];
 
-                if (v < currValue) {
-                    currValue = v;
-                    minIndex = j;
+                if (v == saturate(v)) {
+                    if (v < minValue) {
+                        minValue = v;
+                        minIndex = j;
+                    }
+
+                    if (maxValue < v) {
+                        maxValue = v;
+                        maxIndex = j;
+                    }
                 }
             }
 
-            idx = id.xy + i * direction;
-            uint2 colorIdx = id.xy + minIndex * direction;
+            uint2 minIdx = id.xy + i * direction;
+            uint2 maxIdx = id.xy + (spanLength - i - 1) * direction;
+            uint2 colorMinIdx = id.xy + minIndex * direction;
+            uint2 colorMaxIdx = id.xy + maxIndex * direction;
 
-            if (_ReverseSorting)
-                idx = id.xy + (spanLength - i - 1) * direction;
-
-            _SortedBuffer[idx] = _ColorBuffer[colorIdx];
-            gs_PixelSortCache[minIndex] = 100000;
-            currValue = 10000;
+            _SortedBuffer[minIdx] = _ColorBuffer[colorMinIdx];
+            _SortedBuffer[maxIdx] = _ColorBuffer[colorMaxIdx];
+            gs_PixelSortCache[minIndex] = 2;
+            gs_PixelSortCache[maxIndex] = -2;
+            minValue = 1;
+            maxValue = -1;
         }
     }
 }
