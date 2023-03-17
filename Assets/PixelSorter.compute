@@ -176,7 +176,7 @@ void CS_IdentifySpans(uint3 id : SV_DISPATCHTHREADID) {
     uint spanLength = 0;
 
     uint screenLimit = _HorizontalSorting ? _BufferWidth : _BufferHeight;
-    uint spanLimit = _SpanLimit - (hash(seed) * _MaxRandomOffset);
+    uint spanLimit = _SpanLimit - (hash(seed * seed) * _MaxRandomOffset);
 
     while (pos < screenLimit) {
         idx = _HorizontalSorting ? uint2(pos, id.y) : uint2(id.x, pos);
@@ -189,6 +189,8 @@ void CS_IdentifySpans(uint3 id : SV_DISPATCHTHREADID) {
             _SpanBuffer[idx] = mask == 1 ? spanLength + 1 : spanLength;
             spanStartIndex = pos;
             spanLength = 0;
+            seed = idx.x + _BufferWidth * idx.y + _BufferWidth * _BufferHeight;
+            spanLimit = _SpanLimit - (hash(seed * seed * 2) * _MaxRandomOffset);
         } else {
             spanLength++;
         }
@@ -230,6 +232,7 @@ half sortMethod(half3 c) {
 void CS_RGBtoSortValue(uint3 id : SV_DISPATCHTHREADID) {
     _HSLBuffer[id.xy] = sortMethod(RGBtoHSL(pow(abs(_ColorBuffer[id.xy].rgb), _Smoothness)));
 }
+
 groupshared half gs_PixelSortCache[1080];
 
 [numthreads(1, 1, 1)]
@@ -240,7 +243,7 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
         uint2 idx;
 
         uint2 direction = _HorizontalSorting ? uint2(1, 0) : uint2(0, 1);
-
+        
         for (uint k = 0; k < spanLength; ++k) {
             idx = id.xy + k * direction;
             gs_PixelSortCache[k] = _HSLBuffer[idx];
