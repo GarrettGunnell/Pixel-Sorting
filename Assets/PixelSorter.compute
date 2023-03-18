@@ -15,7 +15,7 @@ half _LowThreshold, _HighThreshold;
 
 uint _BufferWidth, _BufferHeight, _FrameCount, _SpanLimit;
 
-float _FrameTime, _AnimationSpeed, _MaskRandomOffset, _Smoothness;
+float _FrameTime, _AnimationSpeed, _MaskRandomOffset, _Smoothness, _Gamma;
 
 int _InvertMask, _ReverseSorting, _HorizontalSorting, _SortBy, _MaxRandomOffset;
 
@@ -217,20 +217,29 @@ void CS_VisualizeSpans(uint3 id : SV_DISPATCHTHREADID) {
     }
 }
 
-half sortMethod(half3 c) {
+half sortMethod(half3 c, half3 hsl) {
     if (_SortBy == 0)
-        return c.b;
+        return c.r;
     else if (_SortBy == 1)
         return c.g;
     else if (_SortBy == 2)
-        return c.r;
+        return c.b; 
+    else if (_SortBy == 3)
+        return hsl.b;
+    else if (_SortBy == 4)
+        return hsl.g;
+    else if (_SortBy == 5)
+        return hsl.r;
 
     return 0;
 }
 
 [numthreads(8, 8, 1)]
 void CS_RGBtoSortValue(uint3 id : SV_DISPATCHTHREADID) {
-    _HSLBuffer[id.xy] = sortMethod(RGBtoHSL(pow(abs(_ColorBuffer[id.xy].rgb), _Smoothness)));
+    half3 c = saturate(_ColorBuffer[id.xy].rgb);
+    half3 hsl = RGBtoHSL(c);
+
+    _HSLBuffer[id.xy] = sortMethod(c, hsl);
 }
 
 groupshared half gs_PixelSortCache[1080];
@@ -297,7 +306,7 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
 
 [numthreads(8, 8, 1)]
 void CS_Composite(uint3 id : SV_DISPATCHTHREADID) {
-    if (_Mask[id.xy] == 0) {
-        _SortedBuffer[id.xy] = _ColorBuffer[id.xy];
+    if (_Mask[id.xy] == 1) {
+        _ColorBuffer[id.xy] = pow(abs(_SortedBuffer[id.xy]), _Gamma);
     }
 }

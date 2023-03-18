@@ -45,13 +45,16 @@ public class PixelSorter : MonoBehaviour {
     public bool debugSorting = false;
 
     public enum SortMode {
-        Lightness = 0,
+        Red = 0,
+        Green,
+        Blue,
+        Lightness,
         Saturation,
         Hue
     } public SortMode sortBy;
-
+    
     [Range(0.1f, 10.0f)]
-    public float smoothness = 1.0f;
+    public float gamma = 1.0f;
 
     public bool horizontalSorting = false;
 
@@ -156,7 +159,7 @@ public class PixelSorter : MonoBehaviour {
         pixelSorter.SetFloat("_HighThreshold", animateThresholds ? animatedHighThreshold : highThreshold);
         pixelSorter.SetFloat("_FrameTime", Time.time);
         pixelSorter.SetFloat("_AnimationSpeed", offsetAnimationSpeed);
-        pixelSorter.SetFloat("_Smoothness", smoothness);
+        pixelSorter.SetFloat("_Gamma", gamma);
         pixelSorter.SetInt("_BufferWidth", Screen.width);
         pixelSorter.SetInt("_BufferHeight", Screen.height);
         pixelSorter.SetInt("_FrameCount", Time.frameCount);
@@ -206,15 +209,16 @@ public class PixelSorter : MonoBehaviour {
             pixelSorter.SetTexture(compositePass, "_ColorBuffer", colorTex);
             pixelSorter.SetTexture(compositePass, "_SortedBuffer", sortedTex);
             
-            if (!debugSorting)
-                pixelSorter.Dispatch(compositePass, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
+            pixelSorter.Dispatch(compositePass, Mathf.CeilToInt(Screen.width / 8.0f), Mathf.CeilToInt(Screen.height / 8.0f), 1); 
         }
 
         if (debugMask)
             Graphics.Blit(maskTex, destination);
         else if (debugSpans)
             Graphics.Blit(spanTex, destination);
-        else
+        else if (debugSorting)
             Graphics.Blit(sortedTex, destination);
+        else
+            Graphics.Blit(colorTex, destination);
     }
 }
