@@ -16,10 +16,10 @@ public class PixelSorter : MonoBehaviour {
     [Range(0.0f, 1.0f)]
     public float animationSpeed = 0;
 
-    [Range(0.0f, 0.5f)]
+    [Range(0.0f, 1.0f)]
     public float lowThreshold = 0.2f;
     
-    [Range(0.5f, 1.0f)]
+    [Range(0.0f, 1.0f)]
     public float highThreshold = 0.8f;
 
     public bool debugMask = false;
