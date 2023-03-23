@@ -86,7 +86,7 @@ public class PixelSorter : MonoBehaviour {
         hslTex.enableRandomWrite = true;
         hslTex.Create();
 
-        sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear);
+        sortedTex = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGB64, RenderTextureReadWrite.Linear);
         sortedTex.enableRandomWrite = true;
         sortedTex.Create();
     }
