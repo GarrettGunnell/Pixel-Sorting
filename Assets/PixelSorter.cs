@@ -218,6 +218,8 @@ public class PixelSorter : MonoBehaviour {
             Graphics.Blit(spanTex, destination);
         else if (debugSorting)
             Graphics.Blit(sortedTex, destination);
+        else if (visualizeSpans)
+            Graphics.Blit(sortedTex, destination);
         else
             Graphics.Blit(colorTex, destination);
     }
