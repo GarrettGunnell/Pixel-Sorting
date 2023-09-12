@@ -9,6 +9,7 @@
 #pragma kernel CS_VisualizeSpans
 #pragma kernel CS_RGBtoSortValue
 #pragma kernel CS_PixelSort
+#pragma kernel CS_PixelSort2
 #pragma kernel CS_Composite
 
 half _LowThreshold, _HighThreshold;
@@ -25,6 +26,7 @@ Texture2D<half4> _ColorTex;
 RWTexture2D<half4> _SortedBuffer;
 RWTexture2D<half> _HSLBuffer;
 RWTexture2D<half> _SpanBuffer;
+Texture2D<half> _SpanBufferRO;
 
 RWTexture2D<half4> _ClearBuffer;
 
@@ -300,6 +302,119 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
             gs_PixelSortCache[maxIndex] = -2;
             minValue = 1;
             maxValue = -1;
+        }
+    }
+}
+
+groupshared half gs_PixelSortCache2[2048];
+groupshared uint gs_PixelSortIndices2[2048];
+
+void compareAndSwap2(uint2 idx)
+{
+    half c1 = gs_PixelSortCache2[idx.x];
+    half c2 = gs_PixelSortCache2[idx.y];
+
+    bool result = _ReverseSorting ? c1 > c2 : c1 < c2;
+
+    if (result)
+    {
+        half temp = gs_PixelSortCache2[idx.x];
+        gs_PixelSortCache2[idx.x] = gs_PixelSortCache2[idx.y];
+        gs_PixelSortCache2[idx.y] = temp;
+        
+        uint tempIndex = gs_PixelSortIndices2[idx.x];
+        gs_PixelSortIndices2[idx.x] = gs_PixelSortIndices2[idx.y];
+        gs_PixelSortIndices2[idx.y] = tempIndex;
+    }
+}
+
+void flip2(uint h, uint t, uint spanLength)
+{
+    uint q = ((2 * t) / h) * h;
+    uint half_h = h / 2;
+    uint2 indices = q + uint2(t % half_h, h - (t % half_h) - 1);
+    
+    if (indices.y < spanLength)
+        compareAndSwap2(indices);
+}
+
+void disperse2(uint h, uint t, uint spanLength)
+{
+    uint q = ((2 * t) / h) * h;
+    uint half_h = h / 2;
+    uint2 indices = q + uint2(t % half_h, (t % half_h) + half_h);
+    
+    if (indices.y < spanLength)
+        compareAndSwap2(indices);
+}
+
+[numthreads(1024, 1, 1)]
+void CS_PixelSort2(uint3 gid : SV_GroupID, uint tid : SV_GroupIndex)
+{
+    const uint spanLength = _SpanBufferRO[gid.xy];
+    
+    if (spanLength < 1)
+        return;
+
+    const uint2 direction = _HorizontalSorting ? uint2(1, 0) : uint2(0, 1);
+        
+    const uint2 idx1 = gid.xy + 2 * tid * direction;
+    const uint2 idx2 = gid.xy + (2 * tid + 1) * direction;
+
+    if (2 * tid < spanLength)
+    {
+        gs_PixelSortCache2[2 * tid] = _HSLBuffer[idx1];
+        if (2 * tid + 1 < spanLength)
+        {
+            gs_PixelSortCache2[2 * tid + 1] = _HSLBuffer[idx2];
+        }
+        else
+        {
+            gs_PixelSortCache2[2 * tid + 1] = _ReverseSorting ? 1.0f : 0.0f;
+        }
+    }
+    else
+    {
+        gs_PixelSortCache2[2 * tid] = _ReverseSorting ? 1.0f : 0.0f;
+    }
+    gs_PixelSortIndices2[2 * tid] = 2 * tid;
+    gs_PixelSortIndices2[2 * tid + 1] = 2 * tid + 1;
+    
+    uint n = 2048;
+    while (n / 2 >= spanLength && n / 2 >= 4)
+    {
+        n /= 2;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    flip2(2, tid, spanLength);
+    
+    [unroll(10)]
+    for (uint h = 4, cnt = 1; h <= n; h *= 2, cnt += 1)
+    {
+        GroupMemoryBarrierWithGroupSync();
+        flip2(h, tid, spanLength);
+        
+        [unroll(cnt)]
+        for (uint hh = h / 2; hh > 1; hh /= 2)
+        {
+            GroupMemoryBarrierWithGroupSync();
+            disperse2(hh, tid, spanLength);
+        }
+    }
+    GroupMemoryBarrierWithGroupSync();
+    
+    if (2 * tid < spanLength)
+    {
+        const uint2 idxSorted1 = gid.xy + gs_PixelSortIndices2[2 * tid] * direction;
+    
+        _SortedBuffer[idx1] = _ColorBuffer[idxSorted1];
+        
+        if (2 * tid + 1 < spanLength)
+        {
+            const uint2 idxSorted2 = gid.xy + gs_PixelSortIndices2[2 * tid + 1] * direction;
+    
+            _SortedBuffer[idx2] = _ColorBuffer[idxSorted2];
         }
     }
 }
