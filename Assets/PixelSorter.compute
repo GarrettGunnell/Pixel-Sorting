@@ -243,6 +243,43 @@ void CS_RGBtoSortValue(uint3 id : SV_DISPATCHTHREADID) {
 }
 
 groupshared half gs_PixelSortCache[1080];
+groupshared half gs_PixelSortIndices[1080];
+groupshared half gs_PixelSortBuffer[1080];
+
+void merge(uint left, uint mid, uint right) {
+    uint i = left, j = mid, k = 0;
+    
+    while (i < mid && j < right) {
+        if (gs_PixelSortCache[gs_PixelSortIndices[i]] > gs_PixelSortCache[gs_PixelSortIndices[j]]) {
+            gs_PixelSortBuffer[k++] = gs_PixelSortIndices[i++];
+        } else {
+            gs_PixelSortBuffer[k++] = gs_PixelSortIndices[j++];
+        }
+    }
+    
+    while (i < mid) {
+        gs_PixelSortBuffer[k++] = gs_PixelSortIndices[i++];
+    }
+    
+    while (j < right) {
+        gs_PixelSortBuffer[k++] = gs_PixelSortIndices[j++];
+    }
+}
+
+void mergeSort(uint size) {
+    for (uint step = 1; step < size; step *= 2) {
+        for (uint left = 0; left + step < size; left += 2 * step) {
+            uint mid = left + step;
+            uint right = (left + 2 * step < size) ? (left + 2 * step) : size;
+            
+            merge(left, mid, right);
+            
+            for (uint i = 0; i < right - left; ++i) {
+                gs_PixelSortIndices[left + i] = gs_PixelSortBuffer[i];
+            }
+        }
+    }
+}
 
 [numthreads(1, 1, 1)]
 void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
@@ -256,50 +293,16 @@ void CS_PixelSort(uint3 id : SV_DISPATCHTHREADID) {
         for (uint k = 0; k < spanLength; ++k) {
             idx = id.xy + k * direction;
             gs_PixelSortCache[k] = _HSLBuffer[idx];
+            gs_PixelSortIndices[k] = k;
         }
 
-        half minValue = gs_PixelSortCache[0];
-        half maxValue = gs_PixelSortCache[0];
-        uint minIndex = 0;
-        uint maxIndex = 0;
-
-        for (uint i = 0; i < (spanLength / 2) + 1; ++i) {
-            for (uint j = 1; j < spanLength; ++j) {
-                half v = gs_PixelSortCache[j];
-
-                if (v == saturate(v)) {
-                    if (v < minValue) {
-                        minValue = v;
-                        minIndex = j;
-                    }
-
-                    if (maxValue < v) {
-                        maxValue = v;
-                        maxIndex = j;
-                    }
-                }
-            }
-
-            uint2 minIdx = 0;
-            uint2 maxIdx = 0;
-            
-            if (_ReverseSorting) {
-                minIdx = id.xy + i * direction;
-                maxIdx = id.xy + (spanLength - i - 1) * direction;
-            } else {
-                minIdx = id.xy + (spanLength - i - 1) * direction;
-                maxIdx = id.xy + i * direction;
-            }
-
-            uint2 colorMinIdx = id.xy + minIndex * direction;
-            uint2 colorMaxIdx = id.xy + maxIndex * direction;
-
-            _SortedBuffer[minIdx] = _ColorBuffer[colorMinIdx];
-            _SortedBuffer[maxIdx] = _ColorBuffer[colorMaxIdx];
-            gs_PixelSortCache[minIndex] = 2;
-            gs_PixelSortCache[maxIndex] = -2;
-            minValue = 1;
-            maxValue = -1;
+        mergeSort(spanLength);
+        
+        for (uint i = 0; i < spanLength; ++i) {
+            uint2 idxOut = id.xy + i * direction;
+            uint sortedIdx = _ReverseSorting ? spanLength - i - 1 : i;
+            uint2 idxIn = id.xy + gs_PixelSortIndices[sortedIdx] * direction;
+            _SortedBuffer[idxOut] = _ColorBuffer[idxIn];
         }
     }
 }
